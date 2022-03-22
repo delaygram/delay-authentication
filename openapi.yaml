@@ -1,0 +1,37 @@
+openapi: 3.0.3
+info:
+  title: Delaygram Authentication API
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080/
+
+tags:
+  - name: Authentication
+    description: Authentication related endpoints
+
+paths:
+  /login:
+    post:
+      summary: Login
+      tags:
+        - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        200:
+          $ref: '#/components/responses/LoginSuccess'
+        404:
+          $ref: '#/components/responses/WrongUsernamePasswordCombinationException'
+        403:
+          $ref: '#/components/responses/UnverifiedAccountException'
+      x-amazon-api-gateway-integration:
+        httpMethod: Post
+        type: aws_proxy
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LoginFunction.Arn}/invocations
+
+  
