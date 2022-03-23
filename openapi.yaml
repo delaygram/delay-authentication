@@ -13,7 +13,7 @@ tags:
 paths:
   /login:
     post:
-      summary: Login
+      summary: Login existing user
       tags:
         - Authentication
       requestBody:
@@ -34,4 +34,155 @@ paths:
         uri:
           Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LoginFunction.Arn}/invocations
 
-  
+  /register:
+    post:
+      summary: Register new account
+      tags:
+        - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        201:
+          $ref: '#/components/responses/RegisterSuccess'
+        409:
+          $ref: '#/components/responses/EmailAlreadyExistsException'
+      x-amazon-api-gatewat-integration:
+        httpMethod: Post
+        type: aws_proxy
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${RegisterFunction.Arn}/invocations
+
+  /verify:
+    post:
+      summary: Verify newly created account
+      tags:
+        - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+      responses:
+        200:
+          $ref: '#/components/responses/VerifySuccess'
+        404:
+          $ref: '#/components/responses/WrongVerificationException'
+
+components:
+  responses:
+    LoginSuccess:
+      description: Successful login
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/LoggedInUser'
+    RegisterSuccess:
+      description: Successful registration
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/User'
+    VerifySuccess:
+      description: Successful verification
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/User'
+    UnverifiedAccountException:
+      description: Account is not verified
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Exception'
+          example:
+            type: AccountNotVerifiedException
+            message: Account is not verified
+    WrongUsernamePasswordCombinationException:
+      description: Wrong username or password combination
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Exception'
+          example:
+            type: NotAuthorizedException
+            message: Wrong username or password combination
+    WrongVerificationException:
+      description: Wrong verification
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Exception'
+          example:
+            type: WrongVerificationException
+            message: Wrong verification
+    EmailAlreadyExistsException:
+      description: Email already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Exception'
+          example:
+            type: EmailAlreadyExistsException
+            message: Email already exists
+
+  schemas:
+    LoggedInUser:
+      type: object
+      properties:
+        email:
+          type: string
+          example: example@email.com
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+    User:
+      type: object
+      properties:
+        username:
+          type: string
+          example: username
+        password:
+          type: string
+          example: password
+        email:
+          type: string
+          example: example@email.com
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example:
+        password:
+          type: string
+          example: password
+    VerifyRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: email
+        code:
+          type: integer
+          example: 123456
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: email
+        password:
+          type: string
+          example: password
+    Exception:
+      type: object
+      properties:
+        type:
+          type: string
+          example: ErrorType
+        message:
+          type: string
+          example: ErrorMessage
