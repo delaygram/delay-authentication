@@ -12,13 +12,9 @@ Globals:
     Environment:
       Variables:
         StageName: !Ref StageName
-        UserPoolArn: !Ref UserPoolArn
 
 Parameters:
   StageName:
-    Type: String
-    Default: default
-  AuthArn:
     Type: String
     Default: default
 
@@ -47,7 +43,7 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn:
-        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${ApiStageName}/POST/login
+        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/login
 
   AllowAuthenticationApiToInvokeRegisterLambda:
     Type: AWS::Lambda::Permission
@@ -57,7 +53,7 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn:
-        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${ApiStageName}/POST/register
+        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/register
 
   AllowAuthenticationApiToInvokeConfirmLambda:
     Type: AWS::Lambda::Permission
@@ -67,38 +63,34 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn:
-        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${ApiStageName}/POST/confirm
+        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/confirm
 
 # Userpool & Client
 
-    DelaygramAuthorizerUserPool:
-      Type: AWS::Cognito::UserPool
-      Properties:
-        UserPoolName:
-          Fn::Sub: DelaygramAuthorizer-${StageName}
-        Policies:
-          PasswordPolicy:
-            MinimumLength: 8
-            RequireLowercase: true
-            RequireUppercase: true
-            RequireNumbers: true
-            RequireSymbols: true
-        AutoVerifiedAttributes:
-          - email
-        Schema:
-          - AttributeDataType: String
-            Name: email
-            Required: true
+  DelaygramAuthorizerUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName:
+        Fn::Sub: DelaygramAuthorizer-${StageName}
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      AutoVerifiedAttributes:
+        - email
+      Schema:
+        - AttributeDataType: String
+          Name: email
+          Required: true
 
-    DelaygramAuthorizerClient:
-      Type: AWS::Cognito::UserPoolClient
-      Properties:
-        UserPoolId: !Ref DelaygramAuthorizerUserPool
-        ClientName: DelaygramAuthorizerClient
-        GenerateSecret: true
-        ExplicitAuthFlows:
-          - ALLOW_REFRESH_TOKEN_AUTH
-          - ALLOW_USER_PASSWORD_AUTH
+  DelaygramAuthorizerClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref DelaygramAuthorizerUserPool
+      ClientName: DelaygramAuthorizerClient
+      GenerateSecret: true
+      ExplicitAuthFlows:
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
 
 # Auth-related functions
 
@@ -138,7 +130,8 @@ Resources:
 
   ConfirmFunction:
     Type: AWS::Serverless::Function
-    Properties:
+    CodeUri: functions/confirm
+    Policies:
       - SSMParameterReadPolicy:
           ParameterName:
             Fn::Sub: DelaygramAuthorizerUserPool-${StageName}

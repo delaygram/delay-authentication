@@ -155,7 +155,7 @@ components:
       properties:
         email:
           type: string
-          example:
+          example: example@email.com
         password:
           type: string
           example: password
