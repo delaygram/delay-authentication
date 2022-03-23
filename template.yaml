@@ -6,7 +6,8 @@ Globals:
   Function:
     Timeout: 5
     Runtime: python3.9
-    Architecture: [ x86_64 ]
+    Architectures: [ x86_64 ]
+    Handler: app.lambda_handler
     Layers: [ !Ref DependenciesLayer ]
     Environment:
       Variables:
@@ -23,6 +24,8 @@ Parameters:
 
 Resources:
 
+# Authentication API
+
   AuthenticationApi:
     Type: AWS::Serverless::Api
     Properties:
@@ -30,34 +33,154 @@ Resources:
       TracingEnabled: true
       DefinitionBody:
         Fn::Transform:
-          Name: AWS:Include
+          Name: AWS::Include
           Parameters:
             Location: openapi.yaml
-      Auth:
-        DefaultAuthorizer: DelaygramAuthorizer
-        Authorizer:
-          DelaygramAuthorizer:
-            UserPoolArn:
-              Fn::Sub: arn:aws:cognito-idp:eu-west-3:088217417350:userpool/eu-west-3_${AuthArn}
+
+# Authentication API Permissions
+
+  AllowAuthenticationApiToInvokeLoginLambda:
+    Type: AWS::Lambda::Permission
+    DependsOn: LoginFunction
+    Properties:
+      FunctionName: !GetAtt LoginFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${ApiStageName}/POST/login
+
+  AllowAuthenticationApiToInvokeRegisterLambda:
+    Type: AWS::Lambda::Permission
+    DependsOn: RegisterFunction
+    Properties:
+      FunctionName: !GetAtt RegisterFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${ApiStageName}/POST/register
+
+  AllowAuthenticationApiToInvokeConfirmLambda:
+    Type: AWS::Lambda::Permission
+    DependsOn: ConfirmFunction
+    Properties:
+      FunctionName: !GetAtt ConfirmFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${ApiStageName}/POST/confirm
+
+# Userpool & Client
+
+    DelaygramAuthorizerUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName:
+          Fn::Sub: DelaygramAuthorizer-${StageName}
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireUppercase: true
+            RequireNumbers: true
+            RequireSymbols: true
+        AutoVerifiedAttributes:
+          - email
+        Schema:
+          - AttributeDataType: String
+            Name: email
+            Required: true
+
+    DelaygramAuthorizerClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        UserPoolId: !Ref DelaygramAuthorizerUserPool
+        ClientName: DelaygramAuthorizerClient
+        GenerateSecret: true
+        ExplicitAuthFlows:
+          - ALLOW_REFRESH_TOKEN_AUTH
+          - ALLOW_USER_PASSWORD_AUTH
+
+# Auth-related functions
+
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/login
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName:
+              Fn::Sub: DelaygramAuthorizerUserPool-${StageName}
+        - SSMParameterReadPolicy:
+            ParameterName:
+              Fn::Sub: DelaygramAuthorizerClientId-${StageName}
+        - AmazonCognitoReadOnly
+        - EventBridgePutEventsPolicy:
+            EventBusName:
+              Fn::Sub: delaygram-event-bus-${StageName}
+      Tracing: Active
+
+  RegisterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/register
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName:
+              Fn::Sub: DelaygramAuthorizerUserPool-${StageName}
+        - SSMParameterReadPolicy:
+            ParameterName:
+              Fn::Sub: DelaygramAuthorizerClientId-${StageName}
+        - AmazonCognitoReadOnly
+        - EventBridgePutEventsPolicy:
+            EventBusName:
+              Fn::Sub: delaygram-event-bus-${StageName}
+      Tracing: Active
+
+  ConfirmFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      - SSMParameterReadPolicy:
+          ParameterName:
+            Fn::Sub: DelaygramAuthorizerUserPool-${StageName}
+      - SSMParameterReadPolicy:
+          ParameterName:
+            Fn::Sub: DelaygramAuthorizerClientId-${StageName}
+      - AmazonCognitoReadOnly
+      - EventBridgePutEventsPolicy:
+          EventBusName:
+            Fn::Sub: delaygram-event-bus-${StageName}
+    Tracing: Active
+
+# Dependencies
 
   DependenciesLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      ContentUri: !GetAtt Dependencies.zip
-      CompatibleRuntimes: [ python3.9 ]
-      LayerName: !Ref DependenciesLayerName
-      LicenseInfo: !Ref DependenciesLicense
+      LayerName:
+        Fn::Sub: delaygram-dependencies-${StageName}
+      ContentUri: dependencies
+    Metadata:
+      BuildMethod: python3.9
+
+# Storing parameters
+
+  DelaygramAuthorizerUserPoolIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name:
+        Fn::Sub: DelaygramAuthorizerPoolId-${StageName}
+      Type: String
+      Value: !Ref DelaygramAuthorizerUserPool
+
+  DelaygramAuthorizerClientIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name:
+        Fn::Sub: DelaygramAuthorizerClientId-${StageName}
+      Type: String
+      Value: !Ref DelaygramAuthorizerClient
 
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  AuthenticationApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${AuthenticationApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}"
