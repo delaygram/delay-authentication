@@ -11,14 +11,14 @@ tags:
     description: Authentication related endpoints
 
 paths:
-  /login:
+  /authentication/login:
     post:
       summary: Login existing user
       tags:
         - Authentication
       requestBody:
         content:
-          application/json:
+          'application/json':
             schema:
               $ref: '#/components/schemas/LoginRequest'
       responses:
@@ -28,20 +28,20 @@ paths:
           $ref: '#/components/responses/WrongUsernamePasswordCombinationException'
         403:
           $ref: '#/components/responses/UnverifiedAccountException'
-      x-amazon-api-gateway-integration:
-        httpMethod: Post
+      x-amazon-apigateway-integration:
+        httpMethod: POST
         type: aws_proxy
         uri:
           Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LoginFunction.Arn}/invocations
 
-  /register:
+  /authentication/register:
     post:
       summary: Register new account
       tags:
         - Authentication
       requestBody:
         content:
-          application/json:
+          'application/json':
             schema:
               $ref: '#/components/schemas/RegisterRequest'
       responses:
@@ -49,27 +49,32 @@ paths:
           $ref: '#/components/responses/RegisterSuccess'
         409:
           $ref: '#/components/responses/EmailAlreadyExistsException'
-      x-amazon-api-gatewat-integration:
-        httpMethod: Post
+      x-amazon-apigateway-integration:
+        httpMethod: POST
         type: aws_proxy
         uri:
           Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${RegisterFunction.Arn}/invocations
 
-  /verify:
+  /authentication/confirm:
     post:
-      summary: Verify newly created account
+      summary: Confirm newly created account
       tags:
         - Authentication
       requestBody:
         content:
-          application/json:
+          'application/json':
             schema:
-              $ref: '#/components/schemas/VerifyRequest'
+              $ref: '#/components/schemas/ConfirmRequest'
       responses:
         200:
-          $ref: '#/components/responses/VerifySuccess'
+          $ref: '#/components/responses/ConfirmSuccess'
         404:
-          $ref: '#/components/responses/WrongVerificationException'
+          $ref: '#/components/responses/WrongConfirmationException'
+      x-amazon-apigateway-integration:
+        httpMethod: POST
+        type: aws_proxy
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ConfirmFunction.Arn}/invocations
 
 components:
   responses:
@@ -85,7 +90,7 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/User'
-    VerifySuccess:
+    ConfirmSuccess:
       description: Successful verification
       content:
         application/json:
@@ -109,7 +114,7 @@ components:
           example:
             type: NotAuthorizedException
             message: Wrong username or password combination
-    WrongVerificationException:
+    WrongConfirmationException:
       description: Wrong verification
       content:
         application/json:
@@ -159,7 +164,7 @@ components:
         password:
           type: string
           example: password
-    VerifyRequest:
+    ConfirmRequest:
       type: object
       properties:
         email:

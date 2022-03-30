@@ -12,20 +12,25 @@ Globals:
     Environment:
       Variables:
         StageName: !Ref StageName
+        EVENT_BUS: !Ref EventBus
 
 Parameters:
   StageName:
     Type: String
     Default: default
+  EventBus:
+    Type: String
+    Default: default
 
 Resources:
 
-# Authentication API
+  # Authentication API
 
   AuthenticationApi:
     Type: AWS::Serverless::Api
     Properties:
-      StageName: !Ref StageName
+      StageName:
+        Fn::Sub: ${StageName}
       TracingEnabled: true
       DefinitionBody:
         Fn::Transform:
@@ -33,11 +38,11 @@ Resources:
           Parameters:
             Location: openapi.yaml
 
-# Authentication API Permissions
+  # Authentication API Permissions
 
   AllowAuthenticationApiToInvokeLoginLambda:
     Type: AWS::Lambda::Permission
-    DependsOn: LoginFunction
+    DependsOn: [ LoginFunction, AuthenticationApi ]
     Properties:
       FunctionName: !GetAtt LoginFunction.Arn
       Action: lambda:InvokeFunction
@@ -47,7 +52,7 @@ Resources:
 
   AllowAuthenticationApiToInvokeRegisterLambda:
     Type: AWS::Lambda::Permission
-    DependsOn: RegisterFunction
+    DependsOn: [ RegisterFunction, AuthenticationApi ]
     Properties:
       FunctionName: !GetAtt RegisterFunction.Arn
       Action: lambda:InvokeFunction
@@ -57,7 +62,7 @@ Resources:
 
   AllowAuthenticationApiToInvokeConfirmLambda:
     Type: AWS::Lambda::Permission
-    DependsOn: ConfirmFunction
+    DependsOn: [ ConfirmFunction, AuthenticationApi ]
     Properties:
       FunctionName: !GetAtt ConfirmFunction.Arn
       Action: lambda:InvokeFunction
@@ -65,7 +70,7 @@ Resources:
       SourceArn:
         Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/confirm
 
-# Userpool & Client
+  # Userpool & Client
 
   DelaygramAuthorizerUserPool:
     Type: AWS::Cognito::UserPool
@@ -92,12 +97,12 @@ Resources:
         - ALLOW_REFRESH_TOKEN_AUTH
         - ALLOW_USER_PASSWORD_AUTH
 
-# Auth-related functions
+  # Auth-related functions
 
   LoginFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/login
+      CodeUri: functions/login/
       Policies:
         - SSMParameterReadPolicy:
             ParameterName:
@@ -107,14 +112,13 @@ Resources:
               Fn::Sub: DelaygramAuthorizerClientId-${StageName}
         - AmazonCognitoReadOnly
         - EventBridgePutEventsPolicy:
-            EventBusName:
-              Fn::Sub: delaygram-event-bus-${StageName}
+            EventBusName: !Ref EventBus
       Tracing: Active
 
   RegisterFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/register
+      CodeUri: functions/register/
       Policies:
         - SSMParameterReadPolicy:
             ParameterName:
@@ -124,13 +128,12 @@ Resources:
               Fn::Sub: DelaygramAuthorizerClientId-${StageName}
         - AmazonCognitoReadOnly
         - EventBridgePutEventsPolicy:
-            EventBusName:
-              Fn::Sub: delaygram-event-bus-${StageName}
+            EventBusName: !Ref EventBus
       Tracing: Active
 
   ConfirmFunction:
     Type: AWS::Serverless::Function
-    CodeUri: functions/confirm
+    CodeUri: functions/confirm/
     Policies:
       - SSMParameterReadPolicy:
           ParameterName:
@@ -144,7 +147,7 @@ Resources:
             Fn::Sub: delaygram-event-bus-${StageName}
     Tracing: Active
 
-# Dependencies
+  # Dependencies
 
   DependenciesLayer:
     Type: AWS::Serverless::LayerVersion
@@ -155,7 +158,7 @@ Resources:
     Metadata:
       BuildMethod: python3.9
 
-# Storing parameters
+  # Storing parameters
 
   DelaygramAuthorizerUserPoolIdParameter:
     Type: AWS::SSM::Parameter
