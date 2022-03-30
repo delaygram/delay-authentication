@@ -61,7 +61,7 @@ def lambda_handler(event, context):
         logging.error(f'Client error: {error}')
 
         if error.response['Error']['Code'] == 'UserNotConfirmedException':
-            logging.info(f'User {username} not confirmed')
+            logging.error(f'User {username} not confirmed')
             return {
                 'statusCode': 403,
                 'body': json.dumps({
@@ -70,7 +70,7 @@ def lambda_handler(event, context):
                 })
             }
         elif error.response['Error']['Code'] == 'NotAuthorizedException':
-            logging.info(f'User {username} not authorized')
+            logging.error(f'User {username} not authorized')
             return {
                 'statusCode': 404,
                 'body': json.dumps({
@@ -79,7 +79,7 @@ def lambda_handler(event, context):
                 })
             }
         elif error.response['Error']['Code'] == 'UserNotFoundException':
-            logging.info(f'User {username} not found')
+            logging.error(f'User {username} not found')
             return {
                 'statusCode': 404,
                 'body': json.dumps({
