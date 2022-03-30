@@ -61,12 +61,12 @@ def retrieve_user_id(username):
 
 def get_user_pool_id():
     stage_name = os.environ.get('StageName')
-    user_pool_id_parameter_name = 'DelaygramAuthorizer-' + stage_name
+    user_pool_id_parameter_name = "DelaygramAuthorizer-" + stage_name
     return boto3.client('ssm').get_parameter(Name=user_pool_id_parameter_name)['Parameter']['Value']
 
 
 def get_client_id():
-    client_id_parameter_name = 'DelaygramAuthorizerClient'
+    client_id_parameter_name = "DelaygramAuthorizerClient"
     return boto3.client('ssm').get_parameter(Name=client_id_parameter_name)['Parameter']['Value']
 
 

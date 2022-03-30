@@ -13,29 +13,29 @@ from functions.register import app
 @mock_events
 class TestRegisterUser(unittest.TestCase):
     def setUp(self):
-        # Mock Cognito
         self.cognito_mock = boto3.client('cognito-idp')
-        self.cognito_user_pool = self.cognito_mock.create_user_pool(PoolName='test_pool',
+        self.cognito_user_pool = self.cognito_mock.create_user_pool(PoolName='DelaygramAuthorizerPoolName',
                                                                     AutoVerifiedAttributes=['email'],
                                                                     Schema=[{'AttributeDataType': 'String',
                                                                              'Name': 'email',
                                                                              'Required': True}])
         self.user_pool_id = self.cognito_user_pool['UserPool']['Id']
-        self.cognito_client = self.cognito_mock.create_user_pool_client(ClientName='test_client',
+
+        self.cognito_client = self.cognito_mock.create_user_pool_client(ClientName='DelaygramAuthorizerClient',
                                                                         UserPoolId=self.user_pool_id,
                                                                         GenerateSecret=True)
         client_id = self.cognito_client['UserPoolClient']['ClientId']
 
-        # Mock SSM
         self.ssm_mock = boto3.client('ssm')
-        self.ssm_mock.put_parameter(Name='DelaygramAuthorizerUserPoolId-test',
+        self.ssm_mock.put_parameter(Name="DelaygramAuthorizerUserPoolId-test",
                                     Value=self.user_pool_id)
-        self.ssm_mock.put_parameter(Name='DelaygramAuthorizerClientId-test',
+        self.ssm_mock.put_parameter(Name="DelaygramAuthorizerClientId-test",
                                     Value=client_id)
 
     def tearDown(self):
+        self.ssm_mock.delete_parameters(
+            Names=["DelaygramAuthorizerClientId-test", "DelaygramAuthorizerUserPoolId-test"])
         self.cognito_mock.delete_user_pool(UserPoolId=self.user_pool_id)
-        self.ssm_mock.delete_parameter(Name=['DelaygramAuthorizerUserPoolId-test', 'DelaygramAuthorizerClientId-test'])
 
     def test_register_user_happy_flow(self):
         ret = self.register_test_user()
