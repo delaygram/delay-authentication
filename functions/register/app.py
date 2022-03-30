@@ -75,10 +75,11 @@ def get_client_secret(user_pool_id, client_id):
         UserPoolId=user_pool_id,
         ClientId=client_id
     )
+    return response['UserPoolClient']['ClientSecret']
 
 
 def get_secret_hash(username, client_id, user_pool_id):
-    client_secret = get_client_secret()
+    client_secret = get_client_secret(user_pool_id, client_id)
     message = bytes(username + client_id + 'utf-8')
     key = bytes(client_secret, 'utf-8')
     return base64.b64encode(hmac.new(key, message, digestmod=hashlib.sha256).digest()).decode()
