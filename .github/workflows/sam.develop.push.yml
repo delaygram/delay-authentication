@@ -45,9 +45,9 @@ jobs:
 
       - name: Setup Git
         run: |
-          git config --local user.email ${{ secrets.GITHUB_EMAIL }}
+          git config --local user.email ${{ secrets.EMAIL }}
           git config --local user.name ${{ github.actor }}
-          
+
       - name: Tag build
         run: |
           git tag -a build-${{ github.run_number }} -m "Tag for github build-${{ github.run_number }}"
