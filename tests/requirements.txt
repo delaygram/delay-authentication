@@ -1,7 +1,10 @@
-pytest==7.1.1
-pytest-mock==3.7.0
-boto3==1.21.29
-coverage==6.3.2
-moto==3.1.3
+pytest
+pytest-mock
+boto3
+coverage
+moto
 behave
 behave-html-formatter
+
+pyyaml
+python-jose>=3.0.0
