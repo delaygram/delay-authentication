@@ -43,6 +43,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+      - name: Setup Git
+        run: |
+          git config --local user.email ${{ secrets.GITHUB_EMAIL }}
+          git config --local user.name ${{ github.actor }}
+          
       - name: Tag build
         run: |
           git tag -a build-${{ github.run_number }} -m "Tag for github build-${{ github.run_number }}"
