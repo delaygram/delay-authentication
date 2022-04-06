@@ -12,15 +12,19 @@ Globals:
     Environment:
       Variables:
         StageName: !Ref StageName
+        EVENT_BUS: !Ref EventBus
 
 Parameters:
   StageName:
     Type: String
     Default: default
+  EventBus:
+    Type: String
+    Default: default
 
 Resources:
 
-# Authentication API
+  # Authentication API
 
   AuthenticationApi:
     Type: AWS::Serverless::Api
@@ -33,7 +37,7 @@ Resources:
           Parameters:
             Location: openapi.yaml
 
-# Authentication API Permissions
+  # Authentication API Permissions
 
   AllowAuthenticationApiToInvokeLoginLambda:
     Type: AWS::Lambda::Permission
@@ -43,7 +47,7 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn:
-        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/login
+        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/authentication/login
 
   AllowAuthenticationApiToInvokeRegisterLambda:
     Type: AWS::Lambda::Permission
@@ -53,7 +57,7 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn:
-        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/register
+        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/authentication/register
 
   AllowAuthenticationApiToInvokeConfirmLambda:
     Type: AWS::Lambda::Permission
@@ -63,9 +67,9 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn:
-        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/confirm
+        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/authentication/confirm
 
-# Userpool & Client
+  # Userpool & Client
 
   DelaygramAuthorizerUserPool:
     Type: AWS::Cognito::UserPool
@@ -92,59 +96,57 @@ Resources:
         - ALLOW_REFRESH_TOKEN_AUTH
         - ALLOW_USER_PASSWORD_AUTH
 
-# Auth-related functions
+  # Auth-related functions
 
   LoginFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/login
+      CodeUri: functions/login/
       Policies:
         - SSMParameterReadPolicy:
             ParameterName:
-              Fn::Sub: DelaygramAuthorizerUserPool-${StageName}
+              Fn::Sub: DelaygramAuthorizerPoolId-${StageName}
         - SSMParameterReadPolicy:
             ParameterName:
               Fn::Sub: DelaygramAuthorizerClientId-${StageName}
         - AmazonCognitoReadOnly
         - EventBridgePutEventsPolicy:
-            EventBusName:
-              Fn::Sub: delaygram-event-bus-${StageName}
+            EventBusName: !Ref EventBus
       Tracing: Active
 
   RegisterFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/register
+      CodeUri: functions/register/
       Policies:
         - SSMParameterReadPolicy:
             ParameterName:
-              Fn::Sub: DelaygramAuthorizerUserPool-${StageName}
+              Fn::Sub: DelaygramAuthorizerPoolId-${StageName}
         - SSMParameterReadPolicy:
             ParameterName:
               Fn::Sub: DelaygramAuthorizerClientId-${StageName}
         - AmazonCognitoReadOnly
         - EventBridgePutEventsPolicy:
-            EventBusName:
-              Fn::Sub: delaygram-event-bus-${StageName}
+            EventBusName: !Ref EventBus
       Tracing: Active
 
   ConfirmFunction:
     Type: AWS::Serverless::Function
-    CodeUri: functions/confirm
-    Policies:
-      - SSMParameterReadPolicy:
-          ParameterName:
-            Fn::Sub: DelaygramAuthorizerUserPool-${StageName}
-      - SSMParameterReadPolicy:
-          ParameterName:
-            Fn::Sub: DelaygramAuthorizerClientId-${StageName}
-      - AmazonCognitoReadOnly
-      - EventBridgePutEventsPolicy:
-          EventBusName:
-            Fn::Sub: delaygram-event-bus-${StageName}
-    Tracing: Active
+    Properties:
+      CodeUri: functions/confirm/
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName:
+              Fn::Sub: DelaygramAuthorizerPoolId-${StageName}
+        - SSMParameterReadPolicy:
+            ParameterName:
+              Fn::Sub: DelaygramAuthorizerClientId-${StageName}
+        - AmazonCognitoReadOnly
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref EventBus
+      Tracing: Active
 
-# Dependencies
+  # Dependencies
 
   DependenciesLayer:
     Type: AWS::Serverless::LayerVersion
@@ -155,7 +157,7 @@ Resources:
     Metadata:
       BuildMethod: python3.9
 
-# Storing parameters
+  # Storing parameters
 
   DelaygramAuthorizerUserPoolIdParameter:
     Type: AWS::SSM::Parameter
@@ -176,4 +178,4 @@ Resources:
 Outputs:
   AuthenticationApiUrl:
     Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${AuthenticationApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}"
+    Value: !Sub "https://${AuthenticationApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/authentication"

@@ -8,7 +8,7 @@ s3_prefix = "delay-authentication-staging"
 region = "eu-west-3"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "StageName=\"staging\""
+parameter_overrides = "StageName=\"staging\" EventBus=\"delaygram-event-bus-staging\""
 image_repositories = []
 
 [prod]
@@ -20,5 +20,5 @@ s3_prefix = "delay-authentication-prod"
 region = "eu-west-3"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "StageName=\"prod\""
+parameter_overrides = "StageName=\"prod\" EventBus=\"delaygram-event-bus-staging\""
 image_repositories = []

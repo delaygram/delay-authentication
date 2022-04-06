@@ -11,14 +11,14 @@ tags:
     description: Authentication related endpoints
 
 paths:
-  /login:
+  /authentication/login:
     post:
       summary: Login existing user
       tags:
         - Authentication
       requestBody:
         content:
-          application/json:
+          'application/json':
             schema:
               $ref: '#/components/schemas/LoginRequest'
       responses:
@@ -27,52 +27,59 @@ paths:
         404:
           $ref: '#/components/responses/WrongUsernamePasswordCombinationException'
         403:
-          $ref: '#/components/responses/UnverifiedAccountException'
-      x-amazon-api-gateway-integration:
-        httpMethod: Post
+          $ref: '#/components/responses/UnconfirmedAccountException'
+      x-amazon-apigateway-integration:
+        httpMethod: POST
         type: aws_proxy
         uri:
           Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LoginFunction.Arn}/invocations
 
-  /register:
+  /authentication/register:
     post:
       summary: Register new account
       tags:
         - Authentication
       requestBody:
         content:
-          application/json:
+          'application/json':
             schema:
-              $ref: '#/components/schemas/RegisterRequest'
+              $ref: '#/components/schemas/RegistrationRequest'
       responses:
         201:
           $ref: '#/components/responses/RegisterSuccess'
         409:
           $ref: '#/components/responses/EmailAlreadyExistsException'
-      x-amazon-api-gatewat-integration:
-        httpMethod: Post
+      x-amazon-apigateway-integration:
+        httpMethod: POST
         type: aws_proxy
         uri:
           Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${RegisterFunction.Arn}/invocations
 
-  /verify:
+  /authentication/confirm:
     post:
-      summary: Verify newly created account
+      summary: Confirm newly created account
       tags:
         - Authentication
       requestBody:
         content:
-          application/json:
+          'application/json':
             schema:
-              $ref: '#/components/schemas/VerifyRequest'
+              $ref: '#/components/schemas/ConfirmRequest'
       responses:
         200:
-          $ref: '#/components/responses/VerifySuccess'
+          $ref: '#/components/responses/ConfirmSuccess'
         404:
-          $ref: '#/components/responses/WrongVerificationException'
+          $ref: '#/components/responses/WrongConfirmationException'
+      x-amazon-apigateway-integration:
+        httpMethod: POST
+        type: aws_proxy
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ConfirmFunction.Arn}/invocations
 
 components:
+
   responses:
+
     LoginSuccess:
       description: Successful login
       content:
@@ -85,21 +92,22 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/User'
-    VerifySuccess:
+    ConfirmSuccess:
       description: Successful verification
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/User'
-    UnverifiedAccountException:
-      description: Account is not verified
+
+    UnconfirmedAccountException:
+      description: Account is not confirmed
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Exception'
           example:
             type: AccountNotVerifiedException
-            message: Account is not verified
+            message: 'Account is not verified'
     WrongUsernamePasswordCombinationException:
       description: Wrong username or password combination
       content:
@@ -108,8 +116,8 @@ components:
             $ref: '#/components/schemas/Exception'
           example:
             type: NotAuthorizedException
-            message: Wrong username or password combination
-    WrongVerificationException:
+            message: 'Wrong username or password combination'
+    WrongConfirmationException:
       description: Wrong verification
       content:
         application/json:
@@ -117,7 +125,7 @@ components:
             $ref: '#/components/schemas/Exception'
           example:
             type: WrongVerificationException
-            message: Wrong verification
+            message: 'Invalid verification code provided, please try again.'
     EmailAlreadyExistsException:
       description: Email already exists
       content:
@@ -126,63 +134,65 @@ components:
             $ref: '#/components/schemas/Exception'
           example:
             type: EmailAlreadyExistsException
-            message: Email already exists
+            message: 'Email already exists'
 
   schemas:
+
     LoggedInUser:
       type: object
       properties:
         email:
           type: string
-          example: example@email.com
+          example: 'example@email.com'
         token:
           type: string
-          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
     User:
       type: object
       properties:
         username:
           type: string
-          example: username
+          example: 'username'
         password:
           type: string
-          example: password
+          example: 'password'
         email:
           type: string
-          example: example@email.com
-    RegisterRequest:
+          example: 'example@email.com'
+    RegistrationRequest:
       type: object
       properties:
         email:
           type: string
-          example: example@email.com
+          example: 'example@email.com'
         password:
           type: string
-          example: password
-    VerifyRequest:
+          example: 'password'
+    ConfirmRequest:
       type: object
       properties:
-        email:
+        username:
           type: string
-          example: email
+          example: 'username'
         code:
-          type: integer
-          example: 123456
+          type: string
+          example: '123456'
     LoginRequest:
       type: object
       properties:
         email:
           type: string
-          example: email
+          example: 'example@email.com'
         password:
           type: string
-          example: password
+          example: 'password'
+
     Exception:
       type: object
       properties:
         type:
           type: string
-          example: ErrorType
+          example: 'ErrorType'
         message:
           type: string
-          example: ErrorMessage
+          example: 'A message that describes the error'
