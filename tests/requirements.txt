@@ -1,0 +1,10 @@
+pytest
+pytest-mock
+boto3
+coverage
+moto
+behave
+behave-html-formatter
+
+pyyaml
+python-jose>=3.0.0

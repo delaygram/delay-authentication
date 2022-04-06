@@ -1,0 +1,45 @@
+on:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.9"
+
+      - name: Set up SAM
+        uses: aws-actions/setup-sam@v1
+
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Build SAM
+        run: sam build --use-container
+
+      - name: Install dependencies and run unit tests
+        run: |
+          pip3 install -r dependencies/requirements.txt
+          pip3 install -r tests/requirements.txt
+
+      - name: Deploy to production
+        run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset --config-env prod
+
+      - name: Tag release
+        run: |
+          git config --local user.email ${{ secrets.EMAIL }}
+          git config --local user.name ${{ github.actor }}
+          git tag -a production -m "Tag for production"
+          git push origin production
