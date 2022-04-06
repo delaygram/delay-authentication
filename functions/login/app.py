@@ -5,7 +5,7 @@ import os
 
 import boto3
 import botocore
-import simplejson as json
+import json
 
 
 def lambda_handler(event, context):
