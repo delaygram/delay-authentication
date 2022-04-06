@@ -29,8 +29,7 @@ Resources:
   AuthenticationApi:
     Type: AWS::Serverless::Api
     Properties:
-      StageName:
-        Fn::Sub: ${StageName}
+      StageName: !Ref StageName
       TracingEnabled: true
       DefinitionBody:
         Fn::Transform:
@@ -42,33 +41,33 @@ Resources:
 
   AllowAuthenticationApiToInvokeLoginLambda:
     Type: AWS::Lambda::Permission
-    DependsOn: [ LoginFunction, AuthenticationApi ]
+    DependsOn: LoginFunction
     Properties:
       FunctionName: !GetAtt LoginFunction.Arn
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn:
-        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/login
+        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/authentication/login
 
   AllowAuthenticationApiToInvokeRegisterLambda:
     Type: AWS::Lambda::Permission
-    DependsOn: [ RegisterFunction, AuthenticationApi ]
+    DependsOn: RegisterFunction
     Properties:
       FunctionName: !GetAtt RegisterFunction.Arn
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn:
-        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/register
+        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/authentication/register
 
   AllowAuthenticationApiToInvokeConfirmLambda:
     Type: AWS::Lambda::Permission
-    DependsOn: [ ConfirmFunction, AuthenticationApi ]
+    DependsOn: ConfirmFunction
     Properties:
       FunctionName: !GetAtt ConfirmFunction.Arn
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn:
-        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/confirm
+        Fn::Sub: arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthenticationApi}/${StageName}/POST/authentication/confirm
 
   # Userpool & Client
 
@@ -106,7 +105,7 @@ Resources:
       Policies:
         - SSMParameterReadPolicy:
             ParameterName:
-              Fn::Sub: DelaygramAuthorizerUserPool-${StageName}
+              Fn::Sub: DelaygramAuthorizerPoolId-${StageName}
         - SSMParameterReadPolicy:
             ParameterName:
               Fn::Sub: DelaygramAuthorizerClientId-${StageName}
@@ -122,7 +121,7 @@ Resources:
       Policies:
         - SSMParameterReadPolicy:
             ParameterName:
-              Fn::Sub: DelaygramAuthorizerUserPool-${StageName}
+              Fn::Sub: DelaygramAuthorizerPoolId-${StageName}
         - SSMParameterReadPolicy:
             ParameterName:
               Fn::Sub: DelaygramAuthorizerClientId-${StageName}
@@ -133,19 +132,19 @@ Resources:
 
   ConfirmFunction:
     Type: AWS::Serverless::Function
-    CodeUri: functions/confirm/
-    Policies:
-      - SSMParameterReadPolicy:
-          ParameterName:
-            Fn::Sub: DelaygramAuthorizerUserPool-${StageName}
-      - SSMParameterReadPolicy:
-          ParameterName:
-            Fn::Sub: DelaygramAuthorizerClientId-${StageName}
-      - AmazonCognitoReadOnly
-      - EventBridgePutEventsPolicy:
-          EventBusName:
-            Fn::Sub: delaygram-event-bus-${StageName}
-    Tracing: Active
+    Properties:
+      CodeUri: functions/confirm/
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName:
+              Fn::Sub: DelaygramAuthorizerPoolId-${StageName}
+        - SSMParameterReadPolicy:
+            ParameterName:
+              Fn::Sub: DelaygramAuthorizerClientId-${StageName}
+        - AmazonCognitoReadOnly
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref EventBus
+      Tracing: Active
 
   # Dependencies
 
@@ -179,4 +178,4 @@ Resources:
 Outputs:
   AuthenticationApiUrl:
     Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${AuthenticationApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}"
+    Value: !Sub "https://${AuthenticationApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/authentication"
