@@ -2,3 +2,71 @@ on:
   push:
     branches:
       - 'development'
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.9"
+
+      - name: Set up SAM
+        uses: aws-actions/setup-sam@v1
+
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Build SAM
+        run: sam build --use-container
+
+      - name: Install dependencies and run unit tests
+        run: |
+          pip3 install -r dependencies/requirements.txt
+          pip3 install -r tests/requirements.txt
+          pip3 install awscli
+          coverage run --source=functions/ -m pytest tests/ -v -rap --junitxml target/pytest-coverage/testreport-delay-authentication.xml
+          coverage xml -o target/pytest-coverage/coverage-delay-authentication.xml
+
+      - name: Sonarcloud scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Setup Git
+        run: |
+          git config --local user.email ${{ secrets.GITHUB_EMAIL }}
+          git config --local user.name ${{ github.actor }}
+
+      - name: Tag build
+        run: |
+          git tag -a build-${{ github.run_number }} -m "Tag for github build-${{ github.run_number }}"
+          git push origin build-${{ github.run_number }}
+
+      - name: Deploy to staging
+        run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset --config-env staging
+
+        # TODO: Add step to run functional and performance tests
+
+      - name: Tag release
+        run: |
+          git tag -a release-${{ github.run_number }} -m "Tag for github release-${{ github.run_number }}"
+          git push origin release-${{ github.run_number }}
+
+      - name: Publish test results
+        run: |
+          aws s3 cp target/pytest-coverage s3://delaygram-testresults/authentication/build-${{ github.run_number }}/pytest-coverage --recursive
+          
+          # TODO: add test results of functional and performance tests
+          
+        
